@@ -136,6 +136,7 @@ resource "aws_security_group" "this" {
   vpc_id      = data.aws_subnet.this[each.key].vpc_id
   # Allow all traffic from itself
   egress {
+    description = "Allow All Egress Rule for EFS Mount Target"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -143,6 +144,7 @@ resource "aws_security_group" "this" {
   }
   # Allow All traffic from the VPC CIDR
   ingress {
+    description = "Default Ingress Rule for EFS Mount Target"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -151,6 +153,7 @@ resource "aws_security_group" "this" {
   lifecycle {
     create_before_destroy = true
   }
+  tags = local.all_tags
 }
 
 resource "aws_efs_mount_target" "this" {
