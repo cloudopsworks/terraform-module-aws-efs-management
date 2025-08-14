@@ -8,13 +8,69 @@
 #
 
 locals {
-  name = var.name != "" ? var.name : format("%s-%s", var.name_prefix, local.system_name_short)
+  name = var.name != "" ? var.name : format("efs-%s-%s", var.name_prefix, local.system_name_short)
+}
+
+## KMS Key with policy for EFS and Root account
+data "aws_caller_identity" "current" {}
+data "aws_iam_policy_document" "kms" {
+  count = try(var.settings.encryption.enabled, false) && try(var.settings.encryption.kms_key_id, "") == ""
+  statement {
+    sid = "AllowRootAccountFullAccess"
+    actions = [
+      "kms:DeleteAlias",
+      "kms:CreateAlias",
+      "kms:CreateGrant",
+      "kms:DescribeKey",
+      "kms:ListGrants",
+      "kms:RevokeGrant",
+      "kms:GenerateDataKey",
+    ]
+    principals {
+      type = "AWS"
+      identifiers = [
+        "aws:iam::${data.aws_caller_identity.current.account_id}:root",
+      ]
+    }
+    resources = ["*"]
+  }
+  statement {
+    sid = "AllowEFSEncyption"
+    actions = [
+      "kms:GenerateDataKey",
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:ReEncrypt*",
+    ]
+    principals {
+      type        = "Service"
+      identifiers = ["elasticfilesystem.amazonaws.com"]
+    }
+    resources = ["*"]
+  }
+}
+
+resource "aws_kms_key" "this" {
+  count                   = try(var.settings.encryption.enabled, false) && try(var.settings.encryption.kms_key_id, "") == "" ? 1 : 0
+  description             = format("KMS Key for %s EFS", local.name)
+  deletion_window_in_days = try(var.settings.encryption.deletion_window_in_days, 30)
+  enable_key_rotation     = true
+  rotation_period_in_days = try(var.settings.encryption.rotation_period_in_days, 90)
+  policy                  = data.aws_iam_policy_document.kms[0].json
+  tags                    = local.all_tags
+}
+
+resource "aws_kms_alias" "this" {
+  count         = try(var.settings.encryption.enabled, false) && try(var.settings.encryption.kms_key_id, "") == "" ? 1 : 0
+  target_key_id = aws_kms_key.this.id
+  name          = format("alias/efs-%s", local.name)
 }
 
 resource "aws_efs_file_system" "this" {
   creation_token = local.name
-  encrypted      = try(var.settings.encrypted, true)
-  kms_key_id     = try(var.settings.kms_key_id, null)
+  encrypted      = try(var.settings.encryption.enabled, false)
+  kms_key_id     = try(var.settings.encryption.kms_key_id, null)
   dynamic "lifecycle_policy" {
     for_each = length(try(var.settings.lifecycle_policy, {})) > 0 ? [1] : []
     content {
