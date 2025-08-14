@@ -32,7 +32,7 @@ resource "aws_efs_file_system" "this" {
   provisioned_throughput_in_mibps = try(var.settings.provisioned_throughput_in_mibps, null)
   throughput_mode                 = try(var.settings.throughput_mode, null)
   performance_mode                = try(var.settings.performance_mode, null)
-  tags                            = var.settings.tags
+  tags                            = local.all_tags
 }
 
 resource "aws_efs_access_point" "this" {
