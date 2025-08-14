@@ -24,7 +24,7 @@ resource "aws_efs_file_system" "this" {
     }
   }
   dynamic "protection" {
-    for_each = length(try(var.settings.replication_overwrite, null)) != null ? [1] : []
+    for_each = try(var.settings.replication_overwrite, null) != null ? [1] : []
     content {
       replication_overwrite = var.settings.replication_overwrite
     }
