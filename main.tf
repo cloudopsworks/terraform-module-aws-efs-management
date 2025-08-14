@@ -88,7 +88,9 @@ resource "aws_efs_file_system" "this" {
   provisioned_throughput_in_mibps = try(var.settings.provisioned_throughput_in_mibps, null)
   throughput_mode                 = try(var.settings.throughput_mode, null)
   performance_mode                = try(var.settings.performance_mode, null)
-  tags                            = local.all_tags
+  tags = merge(local.all_tags, {
+    Name = local.name
+  })
 }
 
 resource "aws_efs_access_point" "this" {
@@ -116,7 +118,9 @@ resource "aws_efs_access_point" "this" {
       }
     }
   }
-  tags = local.all_tags
+  tags = merge(local.all_tags, {
+    Name = format("%s-%s-ap", local.name, each.key)
+  })
 }
 
 data "aws_subnet" "this" {
@@ -131,7 +135,7 @@ data "aws_vpc" "this" {
 
 resource "aws_security_group" "this" {
   for_each    = try(var.settings.mount_targets, {})
-  name        = format("%s-%s-sg", local.name, each.key )
+  name        = format("%s-%s-sg", local.name, each.key)
   description = "Security Group for EFS Mount Targets - ${each.key}"
   vpc_id      = data.aws_subnet.this[each.key].vpc_id
   # Allow all traffic from itself
