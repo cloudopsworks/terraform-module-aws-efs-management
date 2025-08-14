@@ -64,7 +64,9 @@ resource "aws_efs_access_point" "this" {
 }
 
 resource "aws_efs_mount_target" "this" {
-  for_each        = try(var.settings.mount_targets, [])
+  for_each = {
+    for index, subnet in try(var.settings.mount_targets, []) : index => subnet
+  }
   file_system_id  = aws_efs_file_system.this.id
   subnet_id       = each.value.subnet_id
   security_groups = try(each.value.security_groups, null)
