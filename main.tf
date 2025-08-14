@@ -64,7 +64,7 @@ resource "aws_kms_key" "this" {
 resource "aws_kms_alias" "this" {
   count         = try(var.settings.encryption.enabled, false) && try(var.settings.encryption.kms_key_id, "") == "" ? 1 : 0
   target_key_id = aws_kms_key.this[0].id
-  name          = format("alias/efs-%s", local.name)
+  name          = format("alias/%s-kms-key", local.name)
 }
 
 resource "aws_efs_file_system" "this" {
@@ -131,7 +131,7 @@ data "aws_vpc" "this" {
 
 resource "aws_security_group" "this" {
   for_each    = try(var.settings.mount_targets, {})
-  name        = format("efs-%s-%s-mnt-sg", each.key, local.name)
+  name        = format("%s-%s-sg", local.name, each.key )
   description = "Security Group for EFS Mount Targets - ${each.key}"
   vpc_id      = data.aws_subnet.this[each.key].vpc_id
   # Allow all traffic from itself
@@ -147,6 +147,9 @@ resource "aws_security_group" "this" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = [data.aws_vpc.this[each.key].cidr_block]
+  }
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
