@@ -63,7 +63,7 @@ resource "aws_kms_key" "this" {
 
 resource "aws_kms_alias" "this" {
   count         = try(var.settings.encryption.enabled, false) && try(var.settings.encryption.kms_key_id, "") == "" ? 1 : 0
-  target_key_id = aws_kms_key.this.id
+  target_key_id = aws_kms_key.this[0].id
   name          = format("alias/efs-%s", local.name)
 }
 
