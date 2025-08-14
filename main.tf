@@ -7,9 +7,12 @@
 #     Distributed Under Apache v2.0 License
 #
 
+locals {
+  name = var.name != "" ? var.name : format("%s-%s", var.name_prefix, local.system_name_short)
+}
 
 resource "aws_efs_file_system" "this" {
-  creation_token = var.settings.name
+  creation_token = local.name
   encrypted      = try(var.settings.encrypted, true)
   kms_key_id     = try(var.settings.kms_key_id, null)
   dynamic "lifecycle_policy" {
