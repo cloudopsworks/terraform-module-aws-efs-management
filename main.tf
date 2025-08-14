@@ -119,12 +119,50 @@ resource "aws_efs_access_point" "this" {
   tags = local.all_tags
 }
 
-resource "aws_efs_mount_target" "this" {
-  for_each = {
-    for index, subnet in try(var.settings.mount_targets, []) : index => subnet
+data "aws_subnet" "this" {
+  for_each = try(var.settings.mount_targets, {})
+  id       = each.value.subnet_ids[0]
+}
+
+data "aws_vpc" "this" {
+  for_each = try(var.settings.mount_targets, {})
+  id       = data.aws_subnet.this[each.key].vpc_id
+}
+
+resource "aws_security_group" "this" {
+  for_each    = try(var.settings.mount_targets, {})
+  name        = format("efs-%s-%s-mnt-sg", each.key, local.name)
+  description = "Security Group for EFS Mount Targets - ${each.key}"
+  vpc_id      = data.aws_subnet.this[each.key].vpc_id
+  # Allow all traffic from itself
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
+  # Allow All traffic from the VPC CIDR
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [data.aws_vpc.this[each.key].cidr_block]
+  }
+}
+
+resource "aws_efs_mount_target" "this" {
+  for_each = merge([
+    for k, v in try(var.settings.mount_targets, {}) : {
+      for sub in v.subnet_ids : "${k}-${sub}" => {
+        key             = k
+        subnet_id       = sub
+        security_groups = try(v.security_groups, [])
+        ip_address      = try(v.ip_address, null)
+      }
+    }
+  ]...)
   file_system_id  = aws_efs_file_system.this.id
   subnet_id       = each.value.subnet_id
-  security_groups = try(each.value.security_groups, null)
+  security_groups = concat(each.value.security_groups, [aws_security_group.this[each.value.key].id])
   ip_address      = try(each.value.ip_address, null)
 }
