@@ -14,7 +14,7 @@ locals {
 ## KMS Key with policy for EFS and Root account
 data "aws_caller_identity" "current" {}
 data "aws_iam_policy_document" "kms" {
-  count = try(var.settings.encryption.enabled, false) && try(var.settings.encryption.kms_key_id, "") == ""
+  count = try(var.settings.encryption.enabled, false) && try(var.settings.encryption.kms_key_id, "") == "" ? 1 : 0
   statement {
     sid = "AllowRootAccountFullAccess"
     actions = [
